@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel IPTV</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    /* Estilo padrão para o body */
+    body {
+      font-family: sans-serif;
+      /* O gradiente animado agora é o fundo padrão de todo o body */
+      background: linear-gradient(135deg, #a03c80, #5c3c80, #3c5c80, #3c80a0);
+      background-size: 400% 400%; /* Necessário para a animação do gradiente */
+      animation: gradientBG 15s ease infinite; /* Aplica a animação ao body inteiro */
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      /* Remover display: flex, min-height, ou overflow: hidden daqui,
+         pois serão aplicados dinamicamente apenas para o login se necessário. */
+      overflow-x: hidden; /* Evita rolagem horizontal indesejada pelo background-size */
+    }
+
+    /* Animação de gradiente para o body (mantida) */
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Estilos globais para cards (padrão) */
+    .card {
+      background: #1e1e1e; /* Fundo padrão para cards do dashboard */
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 10px;
+      max-width: 900px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Estilo para o body SOMENTE quando a tela de login estiver visível (classe 'show-login-bg') */
+    /* Esta classe agora só controla o layout para centralizar o login */
+    body.show-login-bg {
+      display: flex; /* Centraliza o login */
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh; /* Ocupa a altura total da viewport */
+      overflow: hidden; /* Remove barra de rolagem no login */
+      /* As propriedades de background e animation foram movidas para o body padrão */
+    }
+
+    /* Estilo ESPECÍFICO para o card de login (sobrescreve .card) */
+    #login.card {
+      background: rgba(30, 30, 30, 0.9); /* Fundo escuro com leve transparência para o login */
+      padding: 30px; /* Aumentar padding */
+      border-radius: 15px; /* Bordas mais arredondadas */
+      max-width: 400px; /* Largura máxima para o card de login */
+      width: 90%; /* Ocupa 90% da largura em telas menores */
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* Sombra mais forte */
+      text-align: center; /* Centraliza o conteúdo */
+      backdrop-filter: blur(5px); /* Efeito de desfoque no fundo */
+      margin: auto; /* Centraliza na tela quando body é flex */
+    }
+
+    #login h2 {
+      font-size: 20px; /* Ajustado para "Insira seus dados de Login" */
+      margin-bottom: 25px;
+      color: #fff;
+      font-weight: normal;
+    }
+
+    .logo-container {
+      margin-bottom: 25px;
+    }
+    .logo-container .iptv-logo-icon {
+        width: 100px; /* Tamanho do ícone de TV */
+        height: auto;
+        fill: #fff; /* Cor do ícone */
+        margin-bottom: 10px;
+    }
+    .logo-container .iptv-logo-text {
+        font-size: 32px; /* Tamanho maior para IPTV */
+        font-weight: bold;
+        color: #fff;
+        line-height: 0.9;
+        text-shadow: 0 0 5px rgba(0,255,255,0.5); /* Leve brilho */
+    }
+    .logo-container .iptv-logo-subtext {
+        font-size: 16px; /* Tamanho para UNIVERSAL */
+        font-weight: normal;
+        display: block;
+        margin-top: 5px;
+        color: #ddd;
+    }
+
+    /* Estilo dos inputs de login */
+    #login input {
+      width: calc(100% - 30px); /* Ajuste para padding */
+      padding: 15px; /* Padding maior */
+      margin-bottom: 15px; /* Espaçamento entre inputs */
+      border: none; /* Sem borda */
+      border-radius: 8px; /* Bordas arredondadas */
+      background: rgba(255, 255, 255, 0.15); /* Fundo semi-transparente e escuro */
+      color: #fff; /* Texto branco */
+      font-size: 16px;
+      outline: none; /* Remove borda ao focar */
+      transition: background-color 0.3s, box-shadow 0.3s;
+    }
+    #login input::placeholder {
+      color: rgba(255, 255, 255, 0.6); /* Cor do placeholder mais suave */
+    }
+    #login input:focus {
+      background: rgba(255, 255, 255, 0.25); /* Fundo um pouco mais claro ao focar */
+      box-shadow: 0 0 8px rgba(0, 191, 255, 0.5); /* Sombra azul clara ao focar */
+    }
+
+    /* Estilo do botão de login (ACESSAR AGORA!) */
+    .login-button-group { /* Um grupo para botões de login, mesmo que tenha só um */
+      margin-top: 20px;
+    }
+    .login-button-group .login-btn {
+      width: 100%; /* Ocupa a largura total */
+      padding: 15px 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      background: linear-gradient(90deg, #2ecc71, #27ae60); /* Gradiente verde padrão */
+    }
+    .login-button-group .login-btn:hover {
+      background: linear-gradient(90deg, #27ae60, #229954);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+    }
+
+    /* Estilos gerais de botões (para o dashboard) */
+    .btn { background: #007BFF; color: #fff; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+
+    /* Estilos para os itens de lista (filmes, canais, temporadas, episódios) */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Mantém responsividade */
+      gap: 15px;
+      padding-top: 15px;
+    }
+    .item {
+      background: #2c2c2c;
+      border-radius: 8px;
+      overflow: hidden; /* Garante que o conteúdo não vaze */
+      cursor: pointer;
+      text-align: center;
+      transition: transform .2s;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      height: 250px; /* Altura fixa para o item (ajustável) */
+      display: flex; /* Para alinhar imagem e texto */
+      flex-direction: column;
+    }
+    .item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+
+    /* Container para a imagem dentro do item, para controlar o aspect ratio */
+    .item-img-container {
+        width: 100%;
+        height: 200px; /* Altura fixa para o container da imagem */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #000; /* Fundo preto para o espaço extra da imagem */
+        border-bottom: 1px solid #3a3a3a;
+    }
+
+    /* Imagem dentro do container: vai se ajustar para caber */
+    .item img {
+      max-width: 100%; /* Garante que a imagem não exceda a largura do contêiner */
+      max-height: 100%; /* Garante que a imagem não exceda a altura do contêiner */
+      object-fit: contain; /* ESSA É A PROPRIEDADE CHAVE PARA NÃO CORTAR */
+    }
+
+    /* Estilo específico para itens de CATEGORIAS (Filmes, Séries, Live) - apenas texto */
+    .item.category-only-text { /* Nova classe genérica para categorias sem imagem */
+        height: auto; /* Altura automática para se ajustar ao texto */
+        min-height: 80px; /* Altura mínima para não ficar muito pequeno */
+        justify-content: center; /* Centraliza o texto verticalmente */
+        align-items: center; /* Centraliza o texto horizontalmente */
+    }
+
+    .item.category-only-text .item-img-container {
+        display: none; /* Esconde o container da imagem completamente */
+    }
+
+    .item div {
+      padding: 10px;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-grow: 1; /* Permite que o texto ocupe o espaço restante */
+      display: flex; /* Centraliza o texto verticalmente */
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Estilo para o botão voltar flutuante */
+    .back-btn-floating {
+      position: fixed; /* Fixa o elemento na tela */
+      bottom: 20px;    /* 20px da parte inferior */
+      right: 20px;     /* 20px da parte direita */
+      background-color: #007bff; /* Fundo azul para destaque */
+      color: #fff;     /* Texto branco */
+      padding: 12px 20px; /* Preenchimento interno */
+      border-radius: 8px; /* Bordas arredondadas */
+      text-decoration: none; /* Remove sublinhado padrão de link */
+      font-weight: bold;
+      font-size: 16px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Sombra para profundidade */
+      z-index: 1000;   /* Garante que fique acima de outros elementos */
+      transition: background-color 0.3s ease, transform 0.2s ease; /* Transições suaves */
+      cursor: pointer;
+    }
+
+    .back-btn-floating:hover {
+      background-color: #0056b3; /* Cor mais escura ao passar o mouse */
+      transform: translateY(-2px); /* Pequeno efeito de elevação */
+    }
+
+    /* Esconder o estilo antigo do back-btn para evitar duplicidade */
+    .back-btn {
+      display: none !important; /* Usar !important para sobrescrever qualquer outro estilo */
+    }
+
+    /* Estilos para todas as modais */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.85);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    .modal-content {
+        position: relative;
+        width: 90%;
+        max-width: 800px;
+        background: #000;
+        border-radius: 8px;
+        padding: 10px;
+    }
+    .modal video {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+    }
+    .hidden {
+        display: none !important;
+    }
+
+    /* CLASSES CSS PARA O PAINEL PRINCIPAL (já existentes) */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .dashboard-item {
+      padding: 40px 20px;
+      border-radius: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .dashboard-item:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    }
+    .dashboard-live { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+    .dashboard-movies { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
+    .dashboard-series { background: linear-gradient(135deg, #8e44ad, #c0392b); }
+    @media (max-width: 768px) {
+      .dashboard-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+      .dashboard-item { padding: 20px; font-size: 16px; }
+    }
+
+    /* Estilos específicos para a modal de desenvolvedores */
+    #developersModal .modal-content {
+        max-width: 400px; /* Reduz a largura para a modal de desenvolvedores */
+        text-align: center;
+        padding: 25px;
+        background: #1e1e1e; /* Fundo mais escuro */
+        box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    #developersModal h3 {
+        color: #007bff; /* Cor para o título */
+        margin-bottom: 15px;
+        font-size: 22px;
+    }
+    #developersModal p {
+        font-size: 18px;
+        margin: 5px 0;
+    }
+    #developersModal a {
+        color: #00BFFF; /* Cor do link */
+        text-decoration: none;
+        font-weight: bold;
+        transition: color 0.2s ease;
+    }
+    #developersModal a:hover {
+        color: #0099cc; /* Cor do link ao passar o mouse */
+        text-decoration: underline;
+    }
+    #developersModal .close-btn-developers {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 24px;
+        color: #fff;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+    #developersModal .close-btn-developers:hover {
+        color: #ccc;
+    }
+  </style>
+</head>
+<body>
+<div class="card" id="login">
+  <div class="logo-container">
+    <svg class="iptv-logo-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="30" width="80" height="50" rx="10" ry="10" />
+      <path d="M50 30 L40 10 M50 30 L60 10" stroke="#fff" stroke-width="5" stroke-linecap="round" />
+    </svg>
+    <div class="iptv-logo-text">IPTV</div>
+    <div class="iptv-logo-subtext">UNIVERSAL</div>
+  </div>
+  <h2>Insira seus dados de Login</h2>
+  <input id="username" placeholder="Usuário" type="text"><br>
+  <input id="password" placeholder="Senha" type="password"><br>
+  <input id="server" placeholder="http://url_here.com:port" type="text"><br>
+  <div class="login-button-group">
+    <button class="login-btn" onclick="doLogin()">ACESSAR AGORA!</button>
+  </div>
+</div>
+
+<div class="card hidden" id="dashboard">
+  <h2>Painel Principal</h2>
+  <div class="dashboard-grid">
+    <div class="dashboard-item dashboard-live" onclick="loadLiveCategories()">
+      📺 TV AO VIVO
+    </div>
+
+    <div class="dashboard-item dashboard-movies" onclick="loadMovieCategories()">
+      🎬 FILMES
+    </div>
+
+    <div class="dashboard-item dashboard-series" onclick="loadSeriesCategories()">
+      🎞️ SÉRIES
+    </div>
+  </div>
+  <div style="text-align: center; margin-top: 30px;">
+    <button class="btn" onclick="openDevelopersModal()">📖 DESENVOLVEDORES</button>
+  </div>
+</div>
+
+<div id="movieCategories" class="card hidden"><h2>Categorias de Filmes</h2><div class="grid" id="movieCategoriesGrid"></div><div class="back-btn-floating" onclick="goBack('dashboard','movieCategories')">← Voltar</div></div>
+<div id="movieList" class="card hidden"><h2 id="movieListTitle"></h2><div class="grid" id="movieGrid"></div><div class="back-btn-floating" onclick="goBack('movieCategories','movieList')">← Voltar</div></div>
+<div id="seriesCategories" class="card hidden"><h2>Categorias de Séries</h2><div class="grid" id="seriesCategoriesGrid"></div><div class="back-btn-floating" onclick="goBack('dashboard','seriesCategories')">← Voltar</div></div>
+<div id="seriesList" class="card hidden"><h2 id="seriesListTitle"></h2><div class="grid" id="seriesGrid"></div><div class="back-btn-floating" onclick="goBack('seriesCategories','seriesList')">← Voltar</div></div>
+<div id="seasonList" class="card hidden"><h2 id="seasonTitle"></h2><div class="grid" id="seasonGrid"></div><div class="back-btn-floating" onclick="goBack('seriesList','seasonList')">← Voltar</div></div>
+<div id="episodeList" class="card hidden"><h2 id="episodeTitle"></h2><div class="grid" id="episodeGrid"></div><div class="back-btn-floating" onclick="goBack('seasonList','episodeList')">← Voltar</div></div>
+<div id="liveCategories" class="card hidden"><h2>Categorias de Canais Ao Vivo</h2><div class="grid" id="liveCategoriesGrid"></div><div class="back-btn-floating" onclick="goBack('dashboard','liveCategories')">← Voltar</div></div>
+<div id="liveList" class="card hidden"><h2 id="liveListTitle"></h2><div class="grid" id="liveGrid"></div><div class="back-btn-floating" onclick="goBack('liveCategories','liveList')">← Voltar</div></div>
+
+<div id="modalPlayer" class="modal hidden">
+    <div class="modal-content">
+        <video id="videoPlayer" controls autoplay></video>
+    </div>
+</div>
+
+<div id="developersModal" class="modal hidden">
+    <div class="modal-content">
+        <span class="close-btn-developers" onclick="closeDevelopersModal()">✖</span>
+        <h3>Desenvolvedores</h3>
+        <p>
+            <a href="https://www.instagram.com/josephdavidoficial/" target="_blank">Joseph David</a>
+        </p>
+        <p>
+            <a href="https://www.instagram.com/junior_semlimites/" target="_blank">Josildo Junior</a>
+        </p>
+    </div>
+</div>
+
+<script>
+let baseUrl = '', user = '', pass = '', hlsPlayer = null;
+
+// Variável global para armazenar a capa da série atual
+let currentSeriesCover = '';
+
+// Função para ativar/desativar o estilo de layout para o login
+function toggleLoginBackground(activate) {
+    const body = document.body;
+    if (activate) {
+        // Apenas adiciona a classe que centraliza o conteúdo e esconde o overflow
+        body.classList.add('show-login-bg');
+    } else {
+        // Remove a classe para que o body volte ao fluxo normal de layout
+        body.classList.remove('show-login-bg');
+        // Ao sair do login, garanta que o body possa rolar se necessário
+        body.style.display = 'block';
+        body.style.justifyContent = 'initial';
+        body.style.alignItems = 'initial';
+        body.style.minHeight = 'initial';
+        body.style.overflow = 'auto'; // Reabilita a barra de rolagem
+    }
+}
+
+// Chamar a função para ativar o layout de login ao carregar a página
+document.addEventListener('DOMContentLoaded', () => {
+    // Esconder todas as telas exceto o login ao carregar
+    document.getElementById('dashboard').classList.add('hidden');
+    document.getElementById('movieCategories').classList.add('hidden');
+    document.getElementById('movieList').classList.add('hidden');
+    document.getElementById('seriesCategories').classList.add('hidden');
+    document.getElementById('seriesList').classList.add('hidden');
+    document.getElementById('seasonList').classList.add('hidden');
+    document.getElementById('episodeList').classList.add('hidden');
+    document.getElementById('liveCategories').classList.add('hidden');
+    document.getElementById('liveList').classList.add('hidden');
+    document.getElementById('modalPlayer').classList.add('hidden');
+    document.getElementById('developersModal').classList.add('hidden');
+
+    // Exibir o login e aplicar o estilo de layout
+    document.getElementById('login').classList.remove('hidden');
+    toggleLoginBackground(true);
+});
+
+
+function goBack(showId, hideId) {
+  document.getElementById(hideId).classList.add('hidden');
+  document.getElementById(showId).classList.remove('hidden');
+
+  // Ajusta o layout do body dependendo para qual tela se está voltando
+  if (showId === 'login') {
+      toggleLoginBackground(true); // Ativa o layout de centralização para o login
+  } else {
+      toggleLoginBackground(false); // Desativa o layout de centralização para outras telas
+  }
+  
+  // Rola para o topo da página ao mudar de seção, para melhor UX
+  window.scrollTo(0, 0);
+}
+
+function doLogin() {
+  baseUrl = document.getElementById('server').value.trim();
+  user = document.getElementById('username').value.trim();
+  pass = document.getElementById('password').value.trim();
+
+  if (!baseUrl || !user || !pass) {
+      alert("Por favor, preencha todos os campos de login.");
+      return;
+  }
+
+  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data?.user_info?.auth) {
+        document.getElementById('login').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        toggleLoginBackground(false); // Desativa o layout de centralização do login após o sucesso
+      } else {
+        alert("Login inválido. Verifique suas credenciais e o servidor.");
+      }
+    })
+    .catch(error => {
+        console.error('Erro na requisição de login:', error);
+        alert("Erro ao tentar fazer login. Verifique o servidor e sua conexão.");
+    });
+}
+
+// carregarLista genérica para Filmes, Séries e Canais (quando tem imagem)
+function carregarLista(url, containerId, titleId, titleText, template) {
+  document.getElementById(containerId).innerHTML = '';
+  document.getElementById(titleId).innerText = titleText;
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
+      data.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'item'; // Classificação padrão para itens com imagem e texto
+        const img = item.stream_icon || item.cover || 'https://via.placeholder.com/150x225'; // Placeholder
+        el.innerHTML = `<div class="item-img-container"><img src=\"${img}\"></div><div>${item.name}</div>`;
+        el.onclick = () => playStream(template.replace('{id}', item.stream_id || item.series_id));
+        document.getElementById(containerId).appendChild(el);
+      });
+    });
+}
+
+function loadMovieCategories() {
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('movieCategories').classList.remove('hidden');
+  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_vod_categories`)
+    .then(res => res.json())
+    .then(data => {
+      const grid = document.getElementById('movieCategoriesGrid');
+      grid.innerHTML = '';
+      data.forEach(cat => {
+        const el = document.createElement('div');
+        el.className = 'item category-only-text'; // Usar a mesma classe para remover imagem
+        el.innerHTML = `<div>${cat.category_name}</div>`;
+        el.onclick = () => {
+          document.getElementById('movieCategories').classList.add('hidden');
+          document.getElementById('movieList').classList.remove('hidden');
+          carregarLista(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_vod_streams&category_id=${cat.category_id}`, 'movieGrid', 'movieListTitle', `Filmes em ${cat.category_name}`, `${baseUrl}/movie/${user}/${pass}/{id}.mp4`);
+        };
+        grid.appendChild(el);
+      });
+    });
+}
+
+function loadSeriesCategories() {
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('seriesCategories').classList.remove('hidden');
+  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series_categories`)
+    .then(res => res.json())
+    .then(data => {
+      const grid = document.getElementById('seriesCategoriesGrid');
+      grid.innerHTML = '';
+      data.forEach(cat => {
+        const el = document.createElement('div');
+        el.className = 'item category-only-text'; // Usar a mesma classe para remover imagem
+        el.innerHTML = `<div>${cat.category_name}</div>`;
+        el.onclick = () => {
+          document.getElementById('seriesCategories').classList.add('hidden');
+          document.getElementById('seriesList').classList.remove('hidden');
+          carregarSeriesLista(cat.category_id, cat.category_name);
+        };
+        grid.appendChild(el);
+      });
+    });
+}
+
+function carregarSeriesLista(categoryId, categoryName) {
+  document.getElementById('seriesGrid').innerHTML = '';
+  document.getElementById('seriesListTitle').innerText = `Séries em ${categoryName}`;
+  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series&category_id=${categoryId}`)
+    .then(res => res.json())
+    .then(data => {
+      data.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'item';
+        const img = item.cover || 'https://via.placeholder.com/150x225'; // Capa da série
+        el.innerHTML = `<div class="item-img-container"><img src=\"${img}\"></div><div>${item.name}</div>`;
+        el.onclick = () => {
+            currentSeriesCover = img; // Armazena a capa da série
+            carregarListaSeries(item.series_id, item.name);
+        };
+        document.getElementById('seriesGrid').appendChild(el);
+      });
+    });
+}
+
+function carregarListaSeries(seriesId, seriesName) {
+  document.getElementById('seriesList').classList.add('hidden');
+  document.getElementById('seasonList').classList.remove('hidden');
+  document.getElementById('seasonTitle').innerText = `Temporadas de ${seriesName}`;
+  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series_info&series_id=${seriesId}`)
+    .then(res => res.json())
+    .then(data => {
+      const seasons = data.episodes;
+      const grid = document.getElementById('seasonGrid');
+      grid.innerHTML = '';
+      for (const season in seasons) {
+        const el = document.createElement('div');
+        el.className = 'item category-only-text'; // Temporadas sem imagem
+        el.innerHTML = `<div>Temporada ${season}</div>`;
+        el.onclick = () => carregarEpisodios(seriesId, season, seriesName);
+        grid.appendChild(el);
+      }
+    });
+}
+
+function carregarEpisodios(seriesId, season, seriesName) {
+  document.getElementById('seasonList').classList.add('hidden');
+  document.getElementById('episodeList').classList.remove('hidden');
+  document.getElementById('episodeTitle').innerText = `Episódios da Temporada ${season}`;
+  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series_info&series_id=${seriesId}`)
+    .then(res => res.json())
+    .then(data => {
+      const episodes = data.episodes[season];
+      const grid = document.getElementById('episodeGrid');
+      grid.innerHTML = '';
+      episodes.forEach(ep => {
+        const el = document.createElement('div');
+        el.className = 'item';
+        // Usar a capa da série armazenada globalmente
+        const img = currentSeriesCover || 'https://via.placeholder.com/150x225'; // Fallback
+        el.innerHTML = `<div class="item-img-container"><img src=\"${img}\"></div><div>${ep.title}</div>`;
+        el.onclick = () => playStream(`${baseUrl}/series/${user}/${pass}/${ep.id}.${ep.container_extension}`);
+        grid.appendChild(el);
+      });
+    });
+}
+
+function loadLiveCategories() {
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('liveCategories').classList.remove('hidden');
+  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_live_categories`)
+    .then(res => res.json())
+    .then(data => {
+      const grid = document.getElementById('liveCategoriesGrid');
+      grid.innerHTML = '';
+      data.forEach(cat => {
+        const el = document.createElement('div');
+        el.className = 'item category-only-text'; // Classe para categorias sem imagem
+        el.innerHTML = `<div>${cat.category_name}</div>`;
+        el.onclick = () => {
+          document.getElementById('liveCategories').classList.add('hidden');
+          document.getElementById('liveList').classList.remove('hidden');
+          carregarLista(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_live_streams&category_id=${cat.category_id}`, 'liveGrid', 'liveListTitle', `Canais em ${cat.category_name}`, `${baseUrl}/live/${user}/${pass}/{id}.m3u8`);
+        };
+        grid.appendChild(el);
+      });
+    });
+}
+
+function playStream(url) {
+  const modal = document.getElementById('modalPlayer');
+  const video = document.getElementById('videoPlayer');
+  modal.classList.remove('hidden');
+  if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
+  video.pause(); video.removeAttribute('src'); video.load();
+  if (url.endsWith('.m3u8') && Hls.isSupported()) {
+    hlsPlayer = new Hls(); hlsPlayer.loadSource(url); hlsPlayer.attachMedia(video);
+  } else {
+    video.src = url;
+  }
+  video.play().catch(err => console.error('Erro ao iniciar vídeo:', err));
+}
+
+function closeModal() {
+  const modal = document.getElementById('modalPlayer');
+  const video = document.getElementById('videoPlayer');
+  modal.classList.add('hidden');
+  if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
+  video.pause(); video.removeAttribute('src'); video.load();
+}
+
+document.getElementById('modalPlayer').addEventListener('click', function(e) {
+  // A modal agora fechará apenas clicando na área escura fora do vídeo
+  if (e.target === this) closeModal();
+});
+
+// Funções para a nova modal de Desenvolvedores
+function openDevelopersModal() {
+    document.getElementById('developersModal').classList.remove('hidden');
+}
+
+function closeDevelopersModal() {
+    document.getElementById('developersModal').classList.add('hidden');
+}
+
+// O antigo updateEPG() foi substituído por openDevelopersModal() no HTML
+// function updateEPG() {
+//    alert("Desenvolvedores: JOSEPH DAVID, JOSILDO JUNIOR");
+// }
+</script>
+</body>
+</html>
