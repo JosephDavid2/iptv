@@ -355,7 +355,7 @@
   <input id="password" placeholder="Senha" type="password"><br>
   <input id="server" placeholder="http://url_here.com:port" type="text"><br>
   <div class="login-button-group">
-    <button class="login-btn" onclick="fetch">ACESSAR AGORA!</button>
+    <button class="login-btn" onclick="doLogin()">ACESSAR AGORA!</button>
   </div>
 </div>
 
@@ -413,27 +413,31 @@ let baseUrl = '', user = '', pass = '', hlsPlayer = null;
 // Variável global para armazenar a capa da série atual
 let currentSeriesCover = '';
 
+// URL do nosso proxy na Vercel. Altere se for diferente.
+const PROXY_BASE_URL = 'https://proxy-iptv-snowy.vercel.app/api/proxy';
+
+// Função auxiliar para criar a URL completa do proxy
+function createProxyUrl(targetUrl) {
+    return `${PROXY_BASE_URL}?url=${encodeURIComponent(targetUrl)}`;
+}
+
 // Função para ativar/desativar o estilo de layout para o login
 function toggleLoginBackground(activate) {
     const body = document.body;
     if (activate) {
-        // Apenas adiciona a classe que centraliza o conteúdo e esconde o overflow
         body.classList.add('show-login-bg');
     } else {
-        // Remove a classe para que o body volte ao fluxo normal de layout
         body.classList.remove('show-login-bg');
-        // Ao sair do login, garanta que o body possa rolar se necessário
         body.style.display = 'block';
         body.style.justifyContent = 'initial';
         body.style.alignItems = 'initial';
         body.style.minHeight = 'initial';
-        body.style.overflow = 'auto'; // Reabilita a barra de rolagem
+        body.style.overflow = 'auto';
     }
 }
 
 // Chamar a função para ativar o layout de login ao carregar a página
 document.addEventListener('DOMContentLoaded', () => {
-    // Esconder todas as telas exceto o login ao carregar
     document.getElementById('dashboard').classList.add('hidden');
     document.getElementById('movieCategories').classList.add('hidden');
     document.getElementById('movieList').classList.add('hidden');
@@ -446,27 +450,24 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modalPlayer').classList.add('hidden');
     document.getElementById('developersModal').classList.add('hidden');
 
-    // Exibir o login e aplicar o estilo de layout
     document.getElementById('login').classList.remove('hidden');
     toggleLoginBackground(true);
 });
-
 
 function goBack(showId, hideId) {
   document.getElementById(hideId).classList.add('hidden');
   document.getElementById(showId).classList.remove('hidden');
 
-  // Ajusta o layout do body dependendo para qual tela se está voltando
   if (showId === 'login') {
-      toggleLoginBackground(true); // Ativa o layout de centralização para o login
+      toggleLoginBackground(true);
   } else {
-      toggleLoginBackground(false); // Desativa o layout de centralização para outras telas
+      toggleLoginBackground(false);
   }
   
-  // Rola para o topo da página ao mudar de seção, para melhor UX
   window.scrollTo(0, 0);
 }
 
+// ✅ CORRIGIDO: Função de login usando o proxy
 function doLogin() {
   baseUrl = document.getElementById('server').value.trim();
   user = document.getElementById('username').value.trim();
@@ -477,23 +478,16 @@ function doLogin() {
       return;
   }
 
-// URL original da API que queremos acessar
   const apiUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}`;
-
-  // URL do nosso proxy na Vercel, passando a URL da API como parâmetro
-  const proxyUrl = `https://proxy-iptv-snowy.vercel.app/{encodeURIComponent(apiUrl)}`;
-
-  // Agora, fazemos a chamada para o nosso proxy seguro
-  fetch(proxyUrl)
+  
+  fetch(createProxyUrl(apiUrl)) // Usando a função auxiliar do proxy
     .then(res => res.json())
     .then(data => {
-      // O resto do código continua igual!
       if (data?.user_info?.auth) {
         document.getElementById('login').classList.add('hidden');
         document.getElementById('dashboard').classList.remove('hidden');
         toggleLoginBackground(false);
       } else {
-        // Se a API do IPTV retornar um erro, ele será mostrado aqui
         const errorMessage = data.error || "Login inválido. Verifique suas credenciais e o servidor.";
         alert(errorMessage);
       }
@@ -504,17 +498,18 @@ function doLogin() {
     });
 }
 
-// carregarLista genérica para Filmes, Séries e Canais (quando tem imagem)
+// ✅ CORRIGIDO: Todas as funções abaixo agora usam o proxy
 function carregarLista(url, containerId, titleId, titleText, template) {
   document.getElementById(containerId).innerHTML = '';
   document.getElementById(titleId).innerText = titleText;
-  fetch(url)
+  
+  fetch(createProxyUrl(url)) // Usando o proxy
     .then(res => res.json())
     .then(data => {
       data.forEach(item => {
         const el = document.createElement('div');
-        el.className = 'item'; // Classificação padrão para itens com imagem e texto
-        const img = item.stream_icon || item.cover || 'https://via.placeholder.com/150x225'; // Placeholder
+        el.className = 'item';
+        const img = item.stream_icon || item.cover || 'https://via.placeholder.com/150x225';
         el.innerHTML = `<div class="item-img-container"><img src=\"${img}\"></div><div>${item.name}</div>`;
         el.onclick = () => playStream(template.replace('{id}', item.stream_id || item.series_id));
         document.getElementById(containerId).appendChild(el);
@@ -525,19 +520,22 @@ function carregarLista(url, containerId, titleId, titleText, template) {
 function loadMovieCategories() {
   document.getElementById('dashboard').classList.add('hidden');
   document.getElementById('movieCategories').classList.remove('hidden');
-  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_vod_categories`)
+  
+  const apiUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_vod_categories`;
+  fetch(createProxyUrl(apiUrl)) // Usando o proxy
     .then(res => res.json())
     .then(data => {
       const grid = document.getElementById('movieCategoriesGrid');
       grid.innerHTML = '';
       data.forEach(cat => {
         const el = document.createElement('div');
-        el.className = 'item category-only-text'; // Usar a mesma classe para remover imagem
+        el.className = 'item category-only-text';
         el.innerHTML = `<div>${cat.category_name}</div>`;
         el.onclick = () => {
           document.getElementById('movieCategories').classList.add('hidden');
           document.getElementById('movieList').classList.remove('hidden');
-          carregarLista(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_vod_streams&category_id=${cat.category_id}`, 'movieGrid', 'movieListTitle', `Filmes em ${cat.category_name}`, `${baseUrl}/movie/${user}/${pass}/{id}.mp4`);
+          const listUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_vod_streams&category_id=${cat.category_id}`;
+          carregarLista(listUrl, 'movieGrid', 'movieListTitle', `Filmes em ${cat.category_name}`, `${baseUrl}/movie/${user}/${pass}/{id}.mp4`);
         };
         grid.appendChild(el);
       });
@@ -547,14 +545,16 @@ function loadMovieCategories() {
 function loadSeriesCategories() {
   document.getElementById('dashboard').classList.add('hidden');
   document.getElementById('seriesCategories').classList.remove('hidden');
-  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series_categories`)
+
+  const apiUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series_categories`;
+  fetch(createProxyUrl(apiUrl)) // Usando o proxy
     .then(res => res.json())
     .then(data => {
       const grid = document.getElementById('seriesCategoriesGrid');
       grid.innerHTML = '';
       data.forEach(cat => {
         const el = document.createElement('div');
-        el.className = 'item category-only-text'; // Usar a mesma classe para remover imagem
+        el.className = 'item category-only-text';
         el.innerHTML = `<div>${cat.category_name}</div>`;
         el.onclick = () => {
           document.getElementById('seriesCategories').classList.add('hidden');
@@ -569,16 +569,18 @@ function loadSeriesCategories() {
 function carregarSeriesLista(categoryId, categoryName) {
   document.getElementById('seriesGrid').innerHTML = '';
   document.getElementById('seriesListTitle').innerText = `Séries em ${categoryName}`;
-  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series&category_id=${categoryId}`)
+
+  const apiUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series&category_id=${categoryId}`;
+  fetch(createProxyUrl(apiUrl)) // Usando o proxy
     .then(res => res.json())
     .then(data => {
       data.forEach(item => {
         const el = document.createElement('div');
         el.className = 'item';
-        const img = item.cover || 'https://via.placeholder.com/150x225'; // Capa da série
+        const img = item.cover || 'https://via.placeholder.com/150x225';
         el.innerHTML = `<div class="item-img-container"><img src=\"${img}\"></div><div>${item.name}</div>`;
         el.onclick = () => {
-            currentSeriesCover = img; // Armazena a capa da série
+            currentSeriesCover = img;
             carregarListaSeries(item.series_id, item.name);
         };
         document.getElementById('seriesGrid').appendChild(el);
@@ -590,7 +592,9 @@ function carregarListaSeries(seriesId, seriesName) {
   document.getElementById('seriesList').classList.add('hidden');
   document.getElementById('seasonList').classList.remove('hidden');
   document.getElementById('seasonTitle').innerText = `Temporadas de ${seriesName}`;
-  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series_info&series_id=${seriesId}`)
+  
+  const apiUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series_info&series_id=${seriesId}`;
+  fetch(createProxyUrl(apiUrl)) // Usando o proxy
     .then(res => res.json())
     .then(data => {
       const seasons = data.episodes;
@@ -598,7 +602,7 @@ function carregarListaSeries(seriesId, seriesName) {
       grid.innerHTML = '';
       for (const season in seasons) {
         const el = document.createElement('div');
-        el.className = 'item category-only-text'; // Temporadas sem imagem
+        el.className = 'item category-only-text';
         el.innerHTML = `<div>Temporada ${season}</div>`;
         el.onclick = () => carregarEpisodios(seriesId, season, seriesName);
         grid.appendChild(el);
@@ -610,7 +614,9 @@ function carregarEpisodios(seriesId, season, seriesName) {
   document.getElementById('seasonList').classList.add('hidden');
   document.getElementById('episodeList').classList.remove('hidden');
   document.getElementById('episodeTitle').innerText = `Episódios da Temporada ${season}`;
-  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series_info&series_id=${seriesId}`)
+  
+  const apiUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_series_info&series_id=${seriesId}`;
+  fetch(createProxyUrl(apiUrl)) // Usando o proxy
     .then(res => res.json())
     .then(data => {
       const episodes = data.episodes[season];
@@ -619,8 +625,7 @@ function carregarEpisodios(seriesId, season, seriesName) {
       episodes.forEach(ep => {
         const el = document.createElement('div');
         el.className = 'item';
-        // Usar a capa da série armazenada globalmente
-        const img = currentSeriesCover || 'https://via.placeholder.com/150x225'; // Fallback
+        const img = currentSeriesCover || 'https://via.placeholder.com/150x225';
         el.innerHTML = `<div class="item-img-container"><img src=\"${img}\"></div><div>${ep.title}</div>`;
         el.onclick = () => playStream(`${baseUrl}/series/${user}/${pass}/${ep.id}.${ep.container_extension}`);
         grid.appendChild(el);
@@ -631,19 +636,22 @@ function carregarEpisodios(seriesId, season, seriesName) {
 function loadLiveCategories() {
   document.getElementById('dashboard').classList.add('hidden');
   document.getElementById('liveCategories').classList.remove('hidden');
-  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_live_categories`)
+
+  const apiUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_live_categories`;
+  fetch(createProxyUrl(apiUrl)) // Usando o proxy
     .then(res => res.json())
     .then(data => {
       const grid = document.getElementById('liveCategoriesGrid');
       grid.innerHTML = '';
       data.forEach(cat => {
         const el = document.createElement('div');
-        el.className = 'item category-only-text'; // Classe para categorias sem imagem
+        el.className = 'item category-only-text';
         el.innerHTML = `<div>${cat.category_name}</div>`;
         el.onclick = () => {
           document.getElementById('liveCategories').classList.add('hidden');
           document.getElementById('liveList').classList.remove('hidden');
-          carregarLista(`${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_live_streams&category_id=${cat.category_id}`, 'liveGrid', 'liveListTitle', `Canais em ${cat.category_name}`, `${baseUrl}/live/${user}/${pass}/{id}.m3u8`);
+          const listUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}&action=get_live_streams&category_id=${cat.category_id}`;
+          carregarLista(listUrl, 'liveGrid', 'liveListTitle', `Canais em ${cat.category_name}`, `${baseUrl}/live/${user}/${pass}/{id}.m3u8`);
         };
         grid.appendChild(el);
       });
@@ -656,8 +664,13 @@ function playStream(url) {
   modal.classList.remove('hidden');
   if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
   video.pause(); video.removeAttribute('src'); video.load();
+
+  // Para os vídeos (m3u8, mp4), não precisamos do proxy, pois o player (HLS.js/video tag) faz a requisição.
+  // A política de conteúdo misto pode ainda se aplicar dependendo do navegador, mas para streaming é mais flexível.
   if (url.endsWith('.m3u8') && Hls.isSupported()) {
-    hlsPlayer = new Hls(); hlsPlayer.loadSource(url); hlsPlayer.attachMedia(video);
+    hlsPlayer = new Hls();
+    hlsPlayer.loadSource(url);
+    hlsPlayer.attachMedia(video);
   } else {
     video.src = url;
   }
@@ -673,11 +686,9 @@ function closeModal() {
 }
 
 document.getElementById('modalPlayer').addEventListener('click', function(e) {
-  // A modal agora fechará apenas clicando na área escura fora do vídeo
   if (e.target === this) closeModal();
 });
 
-// Funções para a nova modal de Desenvolvedores
 function openDevelopersModal() {
     document.getElementById('developersModal').classList.remove('hidden');
 }
@@ -685,11 +696,6 @@ function openDevelopersModal() {
 function closeDevelopersModal() {
     document.getElementById('developersModal').classList.add('hidden');
 }
-
-// O antigo updateEPG() foi substituído por openDevelopersModal() no HTML
-// function updateEPG() {
-//    alert("Desenvolvedores: JOSEPH DAVID, JOSILDO JUNIOR");
-// }
 </script>
 </body>
 </html>
