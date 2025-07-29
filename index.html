@@ -355,7 +355,7 @@
   <input id="password" placeholder="Senha" type="password"><br>
   <input id="server" placeholder="http://url_here.com:port" type="text"><br>
   <div class="login-button-group">
-    <button class="login-btn" onclick="doLogin()">ACESSAR AGORA!</button>
+    <button class="login-btn" onclick="fetch">ACESSAR AGORA!</button>
   </div>
 </div>
 
@@ -477,20 +477,30 @@ function doLogin() {
       return;
   }
 
-  fetch(`${baseUrl}/player_api.php?username=${user}&password=${pass}`)
+// URL original da API que queremos acessar
+  const apiUrl = `${baseUrl}/player_api.php?username=${user}&password=${pass}`;
+
+  // URL do nosso proxy na Vercel, passando a URL da API como parâmetro
+  const proxyUrl = `https://proxy-iptv-snowy.vercel.app/{encodeURIComponent(apiUrl)}`;
+
+  // Agora, fazemos a chamada para o nosso proxy seguro
+  fetch(proxyUrl)
     .then(res => res.json())
     .then(data => {
+      // O resto do código continua igual!
       if (data?.user_info?.auth) {
         document.getElementById('login').classList.add('hidden');
         document.getElementById('dashboard').classList.remove('hidden');
-        toggleLoginBackground(false); // Desativa o layout de centralização do login após o sucesso
+        toggleLoginBackground(false);
       } else {
-        alert("Login inválido. Verifique suas credenciais e o servidor.");
+        // Se a API do IPTV retornar um erro, ele será mostrado aqui
+        const errorMessage = data.error || "Login inválido. Verifique suas credenciais e o servidor.";
+        alert(errorMessage);
       }
     })
     .catch(error => {
         console.error('Erro na requisição de login:', error);
-        alert("Erro ao tentar fazer login. Verifique o servidor e sua conexão.");
+        alert("Erro ao tentar fazer login. A ponte (proxy) pode estar com problemas ou o servidor não respondeu.");
     });
 }
 
